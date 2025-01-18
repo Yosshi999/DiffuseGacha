@@ -8,6 +8,10 @@ def _get_class_name(tag: str) -> str:
     else:
         return "Gtk" + tag
 
+def _rename(key: str) -> str:
+    """Rename camelCase to kebab-case."""
+    return re.sub(r'(?<!^)(?=[A-Z])', '-', key).lower()
+
 def _transpile(from_element: ET.Element, to_element: ET.Element) -> None:
     if from_element.tag == "template":
         new_element = ET.SubElement(to_element, "template", {
@@ -17,6 +21,8 @@ def _transpile(from_element: ET.Element, to_element: ET.Element) -> None:
     else:
         class_name = _get_class_name(from_element.tag)
         new_element = ET.SubElement(to_element, "object", {"class": class_name})
+
+    layout_element = None
     for key, value in from_element.attrib.items():
         if key == "id":
             new_element.attrib["id"] = from_element.attrib["id"]
@@ -26,11 +32,15 @@ def _transpile(from_element: ET.Element, to_element: ET.Element) -> None:
                 ET.SubElement(style, "class", {"name": name})
         elif key.startswith("on_"):
             # prepare event handler
-            event_name = key[3:]
+            event_name = _rename(key[3:])
             ET.SubElement(new_element, "signal", {"name": event_name, "handler": value})
+        elif key.startswith("layout_"):
+            if layout_element is None:
+                layout_element = ET.SubElement(new_element, "layout")
+            layout_name = _rename(key[7:])
+            ET.SubElement(layout_element, "property", {"name": layout_name}).text = value
         else:
-            # rename camelCase to kebab-case
-            key = re.sub(r'(?<!^)(?=[A-Z])', '-', key).lower()
+            key = _rename(key)
             ET.SubElement(new_element, "property", {"name": key}).text = value
     for from_child in from_element:
         to_child = ET.SubElement(new_element, "child")

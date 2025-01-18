@@ -8,6 +8,7 @@ class MyApp(Gtk.Application):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.connect('activate', self.on_activate)
+        self.connect('startup', self.on_startup)
 
     def on_activate(self, app):
         provider = Gtk.CssProvider.new()
@@ -16,7 +17,12 @@ class MyApp(Gtk.Application):
 
         self.win = Window()
         self.win.set_application(self)
+        self.win.set_show_menubar(True)
         self.win.present()
+
+    def on_startup(self, app):
+        menu = Gtk.Builder.new_from_file("components/menu.ui").get_object("menu")
+        self.set_menubar(menu)
 
 app = MyApp(application_id='org.gtk.Example')
 app.run(None)

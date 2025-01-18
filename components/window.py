@@ -7,8 +7,9 @@ from PIL import Image
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gtk, GLib, GdkPixbuf
+from gi.repository import Gtk, GLib, GdkPixbuf, Gio
 
+from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
 
 @TemplateX("components/window.uix")
@@ -83,6 +84,21 @@ class Window(Gtk.ApplicationWindow):
         self.initialize_model()
         self.image_width = 640
         self.image_height = 640
+        self.set_title(f"DiffuseGacha - {self.image_width}x{self.image_height}")
+
+        change_canvas_size_action = Gio.SimpleAction.new(name="change_canvas_size")
+        change_canvas_size_action.connect("activate", self.open_canvas_size_dialog)
+        self.add_action(change_canvas_size_action)
+
+    def open_canvas_size_dialog(self, action, _):
+        def on_canvas_size_changed(width: int, height: int):
+            self.image_width = width
+            self.image_height = height
+            self.set_title(f"DiffuseGacha - {self.image_width}x{self.image_height}")
+            self.gacha_result.set_pixel_size(max(self.image_width, self.image_height))
+
+        self.modal = ChangeCanvasSizeModal(self.image_width, self.image_height, on_canvas_size_changed)
+        self.modal.show()
 
     @Gtk.Template.Callback()
     def on_generate_button_clicked(self, button):

@@ -1,0 +1,62 @@
+<interface>
+<Adjustment id="width_adjustment"
+    lower="8" upper="1024" step-increment="8"
+    page-increment="8" page-size="0"
+/>
+<Adjustment id="height_adjustment"
+    lower="8" upper="1024" step-increment="8"
+    page-increment="8" page-size="0"
+/>
+<template
+    class="ChangeCanvasSizeModal"
+    parent="GtkWindow"
+    title="Change Canvas Size"
+    resizable="false"
+    modal="true"
+>
+    <Box orientation="vertical" className="m-8">
+        <Box orientation="horizontal">
+            <Label label="Lock Aspect Ratio:" className="m-2" />
+            <Switch id="lock_aspect_ratio" className="m-2" />
+        </Box>
+        <Grid>
+            <Label
+                label="Width:"
+                layout_row="0"
+                layout_column="0"
+            />
+            <SpinButton
+                id="width_entry"
+                adjustment="width_adjustment"
+                layout_row="0"
+                layout_column="1"
+                on_valueChanged="on_change"
+            />
+            <Label
+                label="Height:"
+                layout_row="1"
+                layout_column="0"
+            />
+            <SpinButton
+                id="height_entry"
+                adjustment="height_adjustment"
+                layout_row="1"
+                layout_column="1"
+                on_valueChanged="on_change"
+            />
+        </Grid>
+        <Box orientation="horizontal">
+            <Button
+                label="Cancel"
+                className="m-2"
+                on_clicked="on_cancel"
+            />
+            <Button
+                label="Confirm"
+                className="suggested-action m-2"
+                on_clicked="on_confirm"
+            />
+        </Box>
+    </Box>
+</template>
+</interface>

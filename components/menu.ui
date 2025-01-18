@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+<menu id="menu">
+    <submenu>
+        <attribute name="label">File</attribute>
+    </submenu>
+    <submenu>
+        <attribute name="label">Image</attribute>
+        <section>
+            <item>
+                <attribute name="label">Change Canvas Size...</attribute>
+                <attribute name="action">win.change_canvas_size</attribute>
+            </item>
+        </section>
+    </submenu>
+    <submenu>
+        <attribute name="label">View</attribute>
+    </submenu>
+</menu>
+</interface>
