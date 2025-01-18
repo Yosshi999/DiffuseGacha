@@ -1,0 +1,28 @@
+<interface>
+<template
+    class="Window"
+    parent="GtkApplicationWindow"
+    title="DiffuseGacha"
+>
+    <Box orientation="horizontal">
+        <Box orientation="vertical" widthRequest="400">
+            <mPrompt id="prompt" />
+            <Button
+                id="generate_button"
+                label="Generate"
+                className="suggested-action m-2"
+                on_clicked="on_generate_button_clicked"
+                vexpand="true"
+                valign="end"
+            />
+        </Box>
+        <Separator />
+        <Box orientation="vertical">
+            <ProgressBar id="progress" hexpand="true" />
+            <Box orientation="vertical" className="m-2">
+                <Image id="gacha_result" pixelSize="640" />
+            </Box>
+        </Box>
+    </Box>
+</template>
+</interface>
