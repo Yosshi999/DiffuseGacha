@@ -1,6 +1,8 @@
+from dataclasses import dataclass
+from typing import Optional
 from diffusers import DiffusionPipeline
 import torch
-from utils.imutil import mitsua_credit
+from utils.imutil import mitsua_credit, save_image_with_metadata, load_image_with_metadata
 import threading
 import asyncio
 from PIL import Image
@@ -11,6 +13,52 @@ from gi.repository import Gtk, GLib, GdkPixbuf, Gio
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
+
+@dataclass
+class CanvasMemory:
+    image: Optional[Image.Image]
+    latent: Optional[torch.Tensor]  # tensor of shape (1, 8, height, width)
+    generation_config: Optional[dict]
+
+@torch.no_grad()
+def mitsua_decode(self, latents) -> Image.Image:
+    """Decode Latents to Image.
+    Derived from https://huggingface.co/Mitsua/mitsua-likes/blob/main/pipeline_likes_base_unet.py#L994
+    """
+    # make sure the VAE is in float32 mode, as it overflows in float16
+    needs_upcasting = self.vae.dtype == torch.float16 and self.vae.config.force_upcast
+
+    if needs_upcasting:
+        self.upcast_vae()
+        latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
+    elif latents.dtype != self.vae.dtype:
+        if torch.backends.mps.is_available():
+            # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
+            self.vae = self.vae.to(latents.dtype)
+
+    # unscale/denormalize the latents
+    # denormalize with the mean and std if available and not None
+    has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
+    has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
+    if has_latents_mean and has_latents_std:
+        latents_mean = (
+            torch.tensor(self.vae.config.latents_mean).view(1, self.vae.config.latent_channels, 1, 1).to(latents.device, latents.dtype)
+        )
+        latents_std = (
+            torch.tensor(self.vae.config.latents_std).view(1, self.vae.config.latent_channels, 1, 1).to(latents.device, latents.dtype)
+        )
+        latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
+    else:
+        latents = latents / self.vae.config.scaling_factor
+
+    image = self.vae.decode(latents, return_dict=False)[0]
+
+    # cast back to fp16 if needed
+    if needs_upcasting:
+        self.vae.to(dtype=torch.float16)
+    
+    image = self.image_processor.postprocess(image, output_type="pil")
+    return image
 
 @TemplateX("components/window.uix")
 class Window(Gtk.ApplicationWindow):
@@ -39,24 +87,30 @@ class Window(Gtk.ApplicationWindow):
     async def _process_pipe(self, **pipe_kwargs) -> Image.Image:
         ret = self.pipe(**pipe_kwargs)
         image = ret.images[0]
+        # image = mitsua_decode(self.pipe, self.memory.latent)[0]  # alternative to the above line
+        self.memory.image = image
         image = mitsua_credit(image)
-        image.save("output.png")
+        save_image_with_metadata(image, "output.png", self.memory.latent, self.memory.generation_config)
         return image
 
     def process_pipe(self, **pipe_kwargs):
         self.generate_button.set_sensitive(False)
         self.generate_button.set_label("Generating...")
+        self.memory.generation_config = {
+            "width": self.image_width,
+            "height": self.image_height,
+            **pipe_kwargs
+        }
 
         def _on_step_end(pipe, i, t, kwargs):
+            self.memory.latent = kwargs["latents"]
             fraction = (i+1) / pipe._num_timesteps
             GLib.idle_add(lambda: self.progress.set_fraction(fraction))
             return {}
         fut = asyncio.run_coroutine_threadsafe(
             self._process_pipe(
-                width=self.image_width,
-                height=self.image_height,
                 callback_on_step_end=_on_step_end,
-                **pipe_kwargs),
+                **self.memory.generation_config),
             self.bg_loop
         )
         def resolve():
@@ -89,6 +143,8 @@ class Window(Gtk.ApplicationWindow):
         change_canvas_size_action = Gio.SimpleAction.new(name="change_canvas_size")
         change_canvas_size_action.connect("activate", self.open_canvas_size_dialog)
         self.add_action(change_canvas_size_action)
+
+        self.memory: CanvasMemory = CanvasMemory(None, None, None)
 
     def open_canvas_size_dialog(self, action, _):
         def on_canvas_size_changed(width: int, height: int):
