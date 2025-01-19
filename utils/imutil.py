@@ -32,4 +32,5 @@ def load_image_with_metadata(path: str):
     image = Image.open(path)
     latent = safetensors.torch.load(b64decode(image.info["latent_tensor"].split(",", 1)[1]))["latent"]
     generation_config = json.loads(image.info["generation_config"])
-    return image, latent, generation_config
+    # image is tainted by mitsua credits
+    return None, latent, generation_config
