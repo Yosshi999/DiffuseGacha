@@ -20,7 +20,15 @@
         <Box orientation="vertical">
             <ProgressBar id="progress" hexpand="true" />
             <Box orientation="vertical" className="m-2">
-                <Image id="gacha_result" pixelSize="640" />
+                <DrawingArea
+                    id="gacha_result"
+                    widthRequest="640"
+                    heightRequest="640"
+                    hexpand="true"
+                    vexpand="true"
+                    halign="center"
+                    valign="center"
+                />
             </Box>
         </Box>
     </Box>

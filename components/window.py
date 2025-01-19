@@ -9,7 +9,7 @@ from PIL import Image
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gtk, GLib, GdkPixbuf, Gio
+from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
@@ -118,6 +118,27 @@ class Window(Gtk.ApplicationWindow):
             self.generate_button.set_sensitive(True)
             self.generate_button.set_label("Generate")
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
+    
+    def on_draw(self, widget, cr, width, height, data):
+        cr.set_source_rgb(0, 0, 0)  # black
+        cr.paint()
+        if self.pixbuf:
+            buf_width = self.pixbuf.get_width()
+            buf_height = self.pixbuf.get_height()
+            scale_on_fitting_height = height / buf_height
+            scale_on_fitting_width = width / buf_width
+            if scale_on_fitting_height < scale_on_fitting_width:
+                # fit height and centering width
+                scale = scale_on_fitting_height
+                cr.scale(scale, scale)
+                cr.translate((width - buf_width * scale) / 2, 0)
+            else:
+                # fit width and centering height
+                scale = scale_on_fitting_width
+                cr.scale(scale, scale)
+                cr.translate(0, (height - buf_height * scale) / 2)
+            Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
+            cr.paint()
 
     def visualize_result(self):
         image = self.memory.image
@@ -128,8 +149,8 @@ class Window(Gtk.ApplicationWindow):
         data = image.tobytes()
         w, h = image.size
         data = GLib.Bytes.new(data)
-        pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
-        self.gacha_result.set_from_pixbuf(pixbuf.copy())
+        self.pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
+        self.gacha_result.queue_draw()
 
     def __init__(self):
         super().__init__()
@@ -159,8 +180,11 @@ class Window(Gtk.ApplicationWindow):
         open_file_action = Gio.SimpleAction.new(name="open")
         open_file_action.connect("activate", self.show_open_dialog_native)
         self.add_action(open_file_action)
+        # draw area
+        self.gacha_result.set_draw_func(self.on_draw, None)
 
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
+        self.pixbuf = None
 
     # def show_open_dialog(self, action, _):
     #     open_dialog = Gtk.FileDialog()
@@ -222,7 +246,8 @@ class Window(Gtk.ApplicationWindow):
         self.image_width = width
         self.image_height = height
         self.set_title(f"DiffuseGacha - {self.image_width}x{self.image_height}")
-        self.gacha_result.set_pixel_size(max(self.image_width, self.image_height))
+        self.gacha_result.set_content_width(self.image_width)
+        self.gacha_result.set_content_height(self.image_height)
 
     def open_canvas_size_dialog(self, action, _):
         self.modal = ChangeCanvasSizeModal(self.image_width, self.image_height, self.change_canvas_size)
