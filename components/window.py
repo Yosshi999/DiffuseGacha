@@ -157,40 +157,66 @@ class Window(Gtk.ApplicationWindow):
         self.add_action(self.show_credits)
         # open file
         open_file_action = Gio.SimpleAction.new(name="open")
-        open_file_action.connect("activate", self.show_open_dialog)
+        open_file_action.connect("activate", self.show_open_dialog_native)
         self.add_action(open_file_action)
 
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
 
-    def show_open_dialog(self, action, _):
-        open_dialog = Gtk.FileDialog()
-        open_dialog.set_title("Select a File")
-        f = Gtk.FileFilter()
-        f.set_name("Image files")
-        f.add_mime_type("image/png")
-        filters = Gio.ListStore.new(Gtk.FileFilter)
-        filters.append(f)
-        open_dialog.set_filters(filters)  # Set the filters for the open dialog
-        open_dialog.set_default_filter(f)
-        open_dialog.open(self, None, self.open_dialog_open_callback)
+    # def show_open_dialog(self, action, _):
+    #     open_dialog = Gtk.FileDialog()
+    #     open_dialog.set_title("Select a File")
+    #     f = Gtk.FileFilter()
+    #     f.set_name("Image files")
+    #     f.add_mime_type("image/png")
+    #     filters = Gio.ListStore.new(Gtk.FileFilter)
+    #     filters.append(f)
+    #     open_dialog.set_filters(filters)  # Set the filters for the open dialog
+    #     open_dialog.set_default_filter(f)
+    #     open_dialog.open(self, None, self.open_dialog_open_callback)
+
+    def show_open_dialog_native(self, action, _):
+        self.open_dialog = Gtk.FileChooserNative.new(title="Open File", parent=self, action=Gtk.FileChooserAction.OPEN)
+        self.open_dialog.set_modal(True)
+        self.open_dialog.set_transient_for(self)
+        self.open_dialog.connect("response", self.open_dialog_native_callback)
+        self.open_dialog.show()
         
-    def open_dialog_open_callback(self, dialog, result):
-        try:
-            file = dialog.open_finish(result)
-            if file is not None:
-                print(f"File path is {file.get_path()}")
-                _, latent, config = load_image_with_metadata(file.get_path())
-                latent = latent.to(self.pipe._execution_device)
-                image = mitsua_decode(self.pipe, latent)[0]
-                self.memory = CanvasMemory(image, latent, config)
-                self.change_canvas_size(image.width, image.height)
-                self.visualize_result()
-        except GLib.Error as error:
-            print(error)
-            # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
-        except Exception as e:
-            print(e)
-            Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
+    # def open_dialog_open_callback(self, dialog, result):
+    #     try:
+    #         file = dialog.open_finish(result)
+    #         if file is not None:
+    #             print(f"File path is {file.get_path()}")
+    #             _, latent, config = load_image_with_metadata(file.get_path())
+    #             latent = latent.to(self.pipe._execution_device)
+    #             image = mitsua_decode(self.pipe, latent)[0]
+    #             self.memory = CanvasMemory(image, latent, config)
+    #             self.change_canvas_size(image.width, image.height)
+    #             self.visualize_result()
+    #     except GLib.Error as error:
+    #         print(error)
+    #         # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
+    #     except Exception as e:
+    #         print(e)
+    #         Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
+
+    def open_dialog_native_callback(self, dialog, response):
+        if response == Gtk.ResponseType.ACCEPT:
+            try:
+                file = self.open_dialog.get_file()
+                if file is not None:
+                    print(f"File path is {file.get_path()}")
+                    _, latent, config = load_image_with_metadata(file.get_path())
+                    latent = latent.to(self.pipe._execution_device)
+                    image = mitsua_decode(self.pipe, latent)[0]
+                    self.memory = CanvasMemory(image, latent, config)
+                    self.change_canvas_size(image.width, image.height)
+                    self.visualize_result()
+            except GLib.Error as error:
+                print(error)
+                # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
+            except Exception as e:
+                print(e)
+                Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
 
     def change_canvas_size(self, width: int, height: int):
         self.image_width = width
