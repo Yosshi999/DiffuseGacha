@@ -15,6 +15,12 @@
     </submenu>
     <submenu>
         <attribute name="label">View</attribute>
+        <section>
+            <item>
+                <attribute name="label">Show Credits</attribute>
+                <attribute name="action">win.show_credits</attribute>
+            </item>
+        </section>
     </submenu>
 </menu>
 </interface>

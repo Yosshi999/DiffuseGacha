@@ -89,8 +89,8 @@ class Window(Gtk.ApplicationWindow):
         image = ret.images[0]
         # image = mitsua_decode(self.pipe, self.memory.latent)[0]  # alternative to the above line
         self.memory.image = image
-        image = mitsua_credit(image)
-        save_image_with_metadata(image, "output.png", self.memory.latent, self.memory.generation_config)
+        image_cred = mitsua_credit(image)
+        save_image_with_metadata(image_cred, "output.png", self.memory.latent, self.memory.generation_config)
         return image
 
     def process_pipe(self, **pipe_kwargs):
@@ -114,15 +114,22 @@ class Window(Gtk.ApplicationWindow):
             self.bg_loop
         )
         def resolve():
-            image = fut.result()
-            data = image.tobytes()
-            w, h = image.size
-            data = GLib.Bytes.new(data)
-            pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
-            self.gacha_result.set_from_pixbuf(pixbuf.copy())
+            self.visualize_result()
             self.generate_button.set_sensitive(True)
             self.generate_button.set_label("Generate")
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
+
+    def visualize_result(self):
+        image = self.memory.image
+        if image is None:
+            return
+        if self.show_credits.get_state():
+            image = mitsua_credit(image)
+        data = image.tobytes()
+        w, h = image.size
+        data = GLib.Bytes.new(data)
+        pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
+        self.gacha_result.set_from_pixbuf(pixbuf.copy())
 
     def __init__(self):
         super().__init__()
@@ -143,6 +150,9 @@ class Window(Gtk.ApplicationWindow):
         change_canvas_size_action = Gio.SimpleAction.new(name="change_canvas_size")
         change_canvas_size_action.connect("activate", self.open_canvas_size_dialog)
         self.add_action(change_canvas_size_action)
+        self.show_credits = Gio.SimpleAction.new_stateful("show_credits", None, GLib.Variant.new_boolean(True))
+        self.show_credits.connect("change-state", self.update_show_credits)
+        self.add_action(self.show_credits)
 
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
 
@@ -155,6 +165,11 @@ class Window(Gtk.ApplicationWindow):
 
         self.modal = ChangeCanvasSizeModal(self.image_width, self.image_height, on_canvas_size_changed)
         self.modal.show()
+
+    def update_show_credits(self, action, value):
+        self.show_credits.set_state(value)
+        print("Show credits:", value)
+        self.visualize_result()
 
     @Gtk.Template.Callback()
     def on_generate_button_clicked(self, button):
