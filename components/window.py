@@ -65,6 +65,7 @@ class Window(Gtk.ApplicationWindow):
     __gtype_name__ = "Window"
     generate_button = Gtk.Template.Child()
     prompt = Gtk.Template.Child()
+    additional = Gtk.Template.Child()
     progress = Gtk.Template.Child()
     gacha_result = Gtk.Template.Child()
 
@@ -260,5 +261,7 @@ class Window(Gtk.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def on_generate_button_clicked(self, button):
-        kwargs = self.prompt.get_generation_config()
+        kwargs = {}
+        kwargs.update(self.prompt.get_config())
+        kwargs.update(self.additional.get_config())
         self.process_pipe(**kwargs)

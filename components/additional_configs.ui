@@ -1,0 +1,20 @@
+<interface>
+<template class="AdditionalConfigs" parent="GtkNotebook">
+    <child>
+        <object class="AdditionalConfigT2I" id="t2i" />
+    </child>
+    <child type="tab">
+        <object class="GtkLabel">
+            <property name="label">T2I</property>
+        </object>
+    </child>
+    <child>
+        <object class="AdditionalConfigI2I" id="i2i" />
+    </child>
+    <child type="tab">
+        <object class="GtkLabel">
+            <property name="label">I2I</property>
+        </object>
+    </child>
+</template>
+</interface>

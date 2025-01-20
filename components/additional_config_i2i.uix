@@ -1,0 +1,60 @@
+<interface>
+<Adjustment id="guidance_scale_adjustment"
+    lower="0.0" upper="10.0" step-increment="0.1"
+    page-increment="1.0" page-size="0.0" value="5.0"
+/>
+<Adjustment id="guidance_rescale_adjustment"
+    lower="0.0" upper="1.0" step-increment="0.1"
+    page-increment="1.0" page-size="0.0" value="0.7"
+/>
+<Adjustment id="inference_steps_adjustment"
+    lower="1" upper="100" step-increment="1"
+    page-increment="1" page-size="0" value="40"
+/>
+<Adjustment id="denoising_strength_adjustment"
+    lower="0.0" upper="1.0" step-increment="0.05"
+    page-increment="0.1" page-size="0.0" value="0.7"
+/>
+<template class="AdditionalConfigI2I" parent="GtkBox" orientation="vertical">
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Guidance Scale" className="m-2" />
+        <SpinButton
+            id="guidance_scale"
+            hexpand="true"
+            adjustment="guidance_scale_adjustment"
+            digits="1"
+            halign="end"
+        />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Guidance Rescale" className="m-2" />
+        <SpinButton
+            id="guidance_rescale"
+            hexpand="true"
+            adjustment="guidance_rescale_adjustment"
+            digits="1"
+            halign="end"
+        />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Inference Steps" className="m-2" />
+        <SpinButton
+            id="num_inference_steps"
+            hexpand="true"
+            adjustment="inference_steps_adjustment"
+            digits="0"
+            halign="end"
+        />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Denoising Strength" className="m-2" />
+        <SpinButton
+            id="denoising_strength"
+            hexpand="true"
+            adjustment="denoising_strength_adjustment"
+            digits="2"
+            halign="end"
+        />
+    </Box>
+</template>
+</interface>

@@ -7,6 +7,9 @@
     <Box orientation="horizontal">
         <Box orientation="vertical" widthRequest="400">
             <mPrompt id="prompt" />
+            <ScrolledWindow vexpand="true">
+                <mAdditionalConfigs id="additional" className="m-2" />
+            </ScrolledWindow>
             <Button
                 id="generate_button"
                 label="Generate"

@@ -1,16 +1,4 @@
 <interface>
-<Adjustment id="guidance_scale_adjustment"
-    lower="0.0" upper="10.0" step-increment="0.1"
-    page-increment="1.0" page-size="0.0" value="5.0"
-/>
-<Adjustment id="guidance_rescale_adjustment"
-    lower="0.0" upper="1.0" step-increment="0.1"
-    page-increment="1.0" page-size="0.0" value="0.7"
-/>
-<Adjustment id="inference_steps_adjustment"
-    lower="1" upper="100" step-increment="1"
-    page-increment="1" page-size="0" value="40"
-/>
 <template class="Prompt" parent="GtkBox" orientation="vertical">
     <ScrolledWindow hexpand="true" className="m-2">
         <TextView
@@ -26,42 +14,6 @@
                 hexpand="true"
                 heightRequest="50"
                 wrapMode="char" />
-        </ScrolledWindow>
-    </Expander>
-    <Expander label="Generation Config" className="m-2">
-        <ScrolledWindow vexpand="true">
-            <Box orientation="vertical">
-                <Box orientation="horizontal">
-                    <Label label="Guidance Scale" className="m-2" />
-                    <SpinButton
-                        id="guidance_scale"
-                        hexpand="true"
-                        adjustment="guidance_scale_adjustment"
-                        digits="1"
-                        halign="end"
-                    />
-                </Box>
-                <Box orientation="horizontal">
-                    <Label label="Guidance Rescale" className="m-2" />
-                    <SpinButton
-                        id="guidance_rescale"
-                        hexpand="true"
-                        adjustment="guidance_rescale_adjustment"
-                        digits="1"
-                        halign="end"
-                    />
-                </Box>
-                <Box orientation="horizontal">
-                    <Label label="Inference Steps" className="m-2" />
-                    <SpinButton
-                        id="num_inference_steps"
-                        hexpand="true"
-                        adjustment="inference_steps_adjustment"
-                        digits="0"
-                        halign="end"
-                    />
-                </Box>
-            </Box>
         </ScrolledWindow>
     </Expander>
 </template>
