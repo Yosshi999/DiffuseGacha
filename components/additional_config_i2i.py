@@ -4,7 +4,8 @@ from gi.repository import Gtk, GLib, GdkPixbuf
 from PIL import Image
 
 from utils.template import TemplateX
-from utils.pipes import CanvasMemory
+from utils.pipes import CanvasMemory, decode_latent
+from utils.imutil import load_image_with_metadata
 
 @TemplateX("components/additional_config_i2i.uix")
 class AdditionalConfigI2I(Gtk.Box):
@@ -41,12 +42,24 @@ class AdditionalConfigI2I(Gtk.Box):
     def on_set_target_button_clicked(self, button):
         self.memory = self.request_memory()
         self.visualize()
+
+    @Gtk.Template.Callback()
+    def on_open_button_clicked(self, button):
+        self.request_open(self.load_memory)
+
+    def load_memory(self, mem):
+        if mem is not None:
+            self.memory = mem
+            self.visualize()
     
     def set_request_memory_callback(self, func):
         self.request_memory = func
     
+    def set_request_open_callback(self, func):
+        self.request_open = func
+    
     def get_current_latent(self):
-        return self.memory.latent
+        return self.memory.latent.clone()
 
     def get_config(self):
         return {

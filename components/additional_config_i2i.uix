@@ -64,6 +64,11 @@
                 label="Set current output"
                 on_clicked="on_set_target_button_clicked"
             />
+            <Button
+                id="open_button"
+                label="Open..."
+                on_clicked="on_open_button_clicked"
+            />
         </Box>
         <Image id="target_image" pixelSize="80" valign="end" />
     </Box>

@@ -8,9 +8,11 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
+from typing import Optional
 from pathlib import Path
 import datetime
 import copy
+from functools import partial
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
@@ -134,7 +136,12 @@ class Window(Gtk.ApplicationWindow):
         self.add_action(self.show_credits)
         # open file
         open_file_action = Gio.SimpleAction.new(name="open")
-        open_file_action.connect("activate", self.show_open_dialog_native)
+        def open_resolve(mem: Optional[CanvasMemory]):
+            if mem is not None:
+                self.memory = mem
+                self.change_canvas_size(mem.image.width, mem.image.height)
+                self.visualize_result()
+        open_file_action.connect("activate", partial(self.show_open_dialog_native, open_resolve))
         self.add_action(open_file_action)
         # draw area
         self.gacha_result.set_draw_func(self.on_draw, None)
@@ -150,6 +157,7 @@ class Window(Gtk.ApplicationWindow):
         self.pixbuf = None
 
         self.additional.i2i.set_request_memory_callback(self.request_memory)
+        self.additional.i2i.set_request_open_callback(self.show_open_dialog_native)
     
     def request_memory(self):
         return copy.deepcopy(self.memory)
@@ -166,11 +174,11 @@ class Window(Gtk.ApplicationWindow):
     #     open_dialog.set_default_filter(f)
     #     open_dialog.open(self, None, self.open_dialog_open_callback)
 
-    def show_open_dialog_native(self, action, _):
+    def show_open_dialog_native(self, then, action=None, _=None):
         self.open_dialog = Gtk.FileChooserNative.new(title="Open File", parent=self, action=Gtk.FileChooserAction.OPEN)
         self.open_dialog.set_modal(True)
         self.open_dialog.set_transient_for(self)
-        self.open_dialog.connect("response", self.open_dialog_native_callback)
+        self.open_dialog.connect("response", partial(self.open_dialog_native_callback, then))
         self.open_dialog.show()
         
     # def open_dialog_open_callback(self, dialog, result):
@@ -191,13 +199,13 @@ class Window(Gtk.ApplicationWindow):
     #         print(e)
     #         Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
 
-    def open_dialog_native_callback(self, dialog, response):
+    def open_dialog_native_callback(self, then, dialog, response):
         if response == Gtk.ResponseType.ACCEPT:
             try:
                 file = self.open_dialog.get_file()
                 if file is not None:
                     print(f"File path is {file.get_path()}")
-                    self.load_memory(file.get_path())
+                    then(self.load_memory(file.get_path()))
             except GLib.Error as error:
                 print(error)
                 # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
@@ -242,16 +250,14 @@ class Window(Gtk.ApplicationWindow):
         image = mitsua_credit(self.memory.image)
         save_image_with_metadata(image, fname, self.memory.latent, self.memory.generation_config)
 
-    def load_memory(self, path: str):
+    def load_memory(self, path: str) -> Optional[CanvasMemory]:
         if self.pipe is None:
             Gtk.AlertDialog(message=f"Error opening file", detail="To open an image, the diffusion model must be loaded. Please try agin later.").show(self)
-            return
+            return None
         _, latent, config = load_image_with_metadata(path)
         latent = latent.to(self.pipe._execution_device)
         image = decode_latent(self.pipe, latent)[0]
-        self.memory = CanvasMemory(image, latent, config)
-        self.change_canvas_size(image.width, image.height)
-        self.visualize_result()
+        return CanvasMemory(image, latent, config)
 
     def on_drop_image(self, widget, drop, x, y):
         drop.read_value_async(
@@ -267,4 +273,8 @@ class Window(Gtk.ApplicationWindow):
         if len(files) > 1:
             Gtk.AlertDialog(message=f"Notice", detail="Only one file will be opened.").show(self)
         file = files[0]
-        self.load_memory(file.get_path())
+        mem = self.load_memory(file.get_path())
+        if mem is not None:
+            self.memory = mem
+            self.change_canvas_size(mem.image.width, mem.image.height)
+            self.visualize_result()
