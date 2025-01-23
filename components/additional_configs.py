@@ -11,7 +11,13 @@ class AdditionalConfigs(Gtk.Notebook):
 
     def __init__(self):
         super().__init__()
-        self.i2i.set_sensitive(False)
+        self.children = [self.t2i, self.i2i]
+        self.task_name = ["t2i", "i2i"]
 
     def get_config(self):
-        return self.t2i.get_config()
+        index = self.get_current_page()
+        return self.children[index].get_config()
+    
+    def get_task_name(self):
+        index = self.get_current_page()
+        return self.task_name[index]

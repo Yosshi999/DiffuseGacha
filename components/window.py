@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-from typing import Optional
 from diffusers import DiffusionPipeline
 import torch
 from utils.imutil import mitsua_credit, save_image_with_metadata, load_image_with_metadata
@@ -13,52 +11,7 @@ from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
-
-@dataclass
-class CanvasMemory:
-    image: Optional[Image.Image]
-    latent: Optional[torch.Tensor]  # tensor of shape (1, 8, height, width)
-    generation_config: Optional[dict]
-
-@torch.no_grad()
-def mitsua_decode(self, latents) -> Image.Image:
-    """Decode Latents to Image.
-    Derived from https://huggingface.co/Mitsua/mitsua-likes/blob/main/pipeline_likes_base_unet.py#L994
-    """
-    # make sure the VAE is in float32 mode, as it overflows in float16
-    needs_upcasting = self.vae.dtype == torch.float16 and self.vae.config.force_upcast
-
-    if needs_upcasting:
-        self.upcast_vae()
-        latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
-    elif latents.dtype != self.vae.dtype:
-        if torch.backends.mps.is_available():
-            # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
-            self.vae = self.vae.to(latents.dtype)
-
-    # unscale/denormalize the latents
-    # denormalize with the mean and std if available and not None
-    has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
-    has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
-    if has_latents_mean and has_latents_std:
-        latents_mean = (
-            torch.tensor(self.vae.config.latents_mean).view(1, self.vae.config.latent_channels, 1, 1).to(latents.device, latents.dtype)
-        )
-        latents_std = (
-            torch.tensor(self.vae.config.latents_std).view(1, self.vae.config.latent_channels, 1, 1).to(latents.device, latents.dtype)
-        )
-        latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
-    else:
-        latents = latents / self.vae.config.scaling_factor
-
-    image = self.vae.decode(latents, return_dict=False)[0]
-
-    # cast back to fp16 if needed
-    if needs_upcasting:
-        self.vae.to(dtype=torch.float16)
-    
-    image = self.image_processor.postprocess(image, output_type="pil")
-    return image
+from lib.pipes import CanvasMemory, text_to_image, image_to_image, decode_latent
 
 @TemplateX("components/window.uix")
 class Window(Gtk.ApplicationWindow):
@@ -70,7 +23,10 @@ class Window(Gtk.ApplicationWindow):
     gacha_result = Gtk.Template.Child()
 
     async def _initialize_model(self, device, dtype):
-        return DiffusionPipeline.from_pretrained("Mitsua/mitsua-likes", trust_remote_code=True).to(device, dtype=dtype)
+        pipe = DiffusionPipeline.from_pretrained("Mitsua/mitsua-likes", trust_remote_code=True).to(device, dtype=dtype)
+        # Workaround because https://huggingface.co/Mitsua/mitsua-likes/blob/main/pipeline_likes_base_unet.py#L1035 is broken.
+        pipe.run_character_detector = lambda *args: (None, None)
+        return pipe
 
     def initialize_model(self):
         self.generate_button.set_sensitive(False)
@@ -85,39 +41,35 @@ class Window(Gtk.ApplicationWindow):
             self.generate_button.set_label("Generate")
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
 
-    async def _process_pipe(self, **pipe_kwargs) -> Image.Image:
-        ret = self.pipe(**pipe_kwargs)
-        image = ret.images[0]
-        # image = mitsua_decode(self.pipe, self.memory.latent)[0]  # alternative to the above line
-        self.memory.image = image
+    async def _process_pipe(self, task_name, **pipe_kwargs) -> CanvasMemory:
+        if task_name == "t2i":
+            memory = text_to_image(self.pipe, **pipe_kwargs)
+        elif task_name == "i2i":
+            memory = image_to_image(self.pipe, latent=self.memory.latent, **pipe_kwargs)
+        image = memory.image
         image_cred = mitsua_credit(image)
-        save_image_with_metadata(image_cred, "output.png", self.memory.latent, self.memory.generation_config)
-        return image
+        save_image_with_metadata(image_cred, "output.png", memory.latent, memory.generation_config)
+        return memory
 
-    def process_pipe(self, **pipe_kwargs):
+    def process_pipe(self, task_name, **pipe_kwargs):
         self.generate_button.set_sensitive(False)
         self.generate_button.set_label("Generating...")
-        self.memory.generation_config = {
-            "width": self.image_width,
-            "height": self.image_height,
-            **pipe_kwargs
-        }
-
         def _on_step_end(pipe, i, t, kwargs):
-            self.memory.latent = kwargs["latents"]
             fraction = (i+1) / pipe._num_timesteps
             GLib.idle_add(lambda: self.progress.set_fraction(fraction))
             return {}
         fut = asyncio.run_coroutine_threadsafe(
             self._process_pipe(
+                task_name,
                 callback_on_step_end=_on_step_end,
-                **self.memory.generation_config),
+                **pipe_kwargs),
             self.bg_loop
         )
         def resolve():
-            self.visualize_result()
             self.generate_button.set_sensitive(True)
             self.generate_button.set_label("Generate")
+            self.memory = fut.result()
+            self.visualize_result()
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
     
     def on_draw(self, widget, cr, width, height, data):
@@ -232,7 +184,7 @@ class Window(Gtk.ApplicationWindow):
                     print(f"File path is {file.get_path()}")
                     _, latent, config = load_image_with_metadata(file.get_path())
                     latent = latent.to(self.pipe._execution_device)
-                    image = mitsua_decode(self.pipe, latent)[0]
+                    image = decode_latent(self.pipe, latent)[0]
                     self.memory = CanvasMemory(image, latent, config)
                     self.change_canvas_size(image.width, image.height)
                     self.visualize_result()
@@ -261,7 +213,12 @@ class Window(Gtk.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def on_generate_button_clicked(self, button):
+        if self.additional.get_task_name() == "i2i" and self.memory.latent is None:
+            Gtk.AlertDialog(message=f"Invalid I2I Request", detail="Target image is not loaded.").show(self)
+            return
         kwargs = {}
         kwargs.update(self.prompt.get_config())
         kwargs.update(self.additional.get_config())
-        self.process_pipe(**kwargs)
+        kwargs["width"] = self.image_width
+        kwargs["height"] = self.image_height
+        self.process_pipe(self.additional.get_task_name(), **kwargs)
