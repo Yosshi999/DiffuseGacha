@@ -56,5 +56,16 @@
             halign="end"
         />
     </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Target image" className="m-2" halign="start" hexpand="true" />
+        <Box orientation="vertical" hexpand="true" valign="center" className="m-2">
+            <Button
+                id="set_target_button"
+                label="Set current output"
+                on_clicked="on_set_target_button_clicked"
+            />
+        </Box>
+        <Image id="target_image" pixelSize="80" valign="end" />
+    </Box>
 </template>
 </interface>

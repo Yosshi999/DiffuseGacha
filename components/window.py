@@ -10,6 +10,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
 from pathlib import Path
 import datetime
+import copy
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
@@ -47,7 +48,7 @@ class Window(Gtk.ApplicationWindow):
         if task_name == "t2i":
             memory = text_to_image(self.pipe, **pipe_kwargs)
         elif task_name == "i2i":
-            memory = image_to_image(self.pipe, latent=self.memory.latent, **pipe_kwargs)
+            memory = image_to_image(self.pipe, **pipe_kwargs)
         return memory
 
     def process_pipe(self, task_name, **pipe_kwargs):
@@ -148,6 +149,11 @@ class Window(Gtk.ApplicationWindow):
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
         self.pixbuf = None
 
+        self.additional.i2i.set_request_memory_callback(self.request_memory)
+    
+    def request_memory(self):
+        return copy.deepcopy(self.memory)
+
     # def show_open_dialog(self, action, _):
     #     open_dialog = Gtk.FileDialog()
     #     open_dialog.set_title("Select a File")
@@ -217,14 +223,18 @@ class Window(Gtk.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def on_generate_button_clicked(self, button):
-        if self.additional.get_task_name() == "i2i" and self.memory.latent is None:
-            Gtk.AlertDialog(message=f"Invalid I2I Request", detail="Target image is not loaded.").show(self)
-            return
         kwargs = {}
         kwargs.update(self.prompt.get_config())
         kwargs.update(self.additional.get_config())
         kwargs["width"] = self.image_width
         kwargs["height"] = self.image_height
+
+        if self.additional.get_task_name() == "i2i":
+            latent = self.additional.i2i.get_current_latent()
+            if latent is None:
+                Gtk.AlertDialog(message=f"Invalid I2I Request", detail="Target image is not loaded.").show(self)
+                return
+            kwargs["latent"] = latent
         self.process_pipe(self.additional.get_task_name(), **kwargs)
 
     def save_memory(self):
