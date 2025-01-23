@@ -11,7 +11,7 @@ from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
-from lib.pipes import CanvasMemory, text_to_image, image_to_image, decode_latent
+from utils.pipes import CanvasMemory, text_to_image, image_to_image, decode_latent
 
 @TemplateX("components/window.uix")
 class Window(Gtk.ApplicationWindow):
