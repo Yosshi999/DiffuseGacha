@@ -157,7 +157,8 @@ class Window(Gtk.ApplicationWindow):
         self.pixbuf = None
 
         self.additional.i2i.set_request_memory_callback(self.request_memory)
-        self.additional.i2i.set_request_open_callback(self.show_open_dialog_native)
+        self.additional.i2i.set_request_openwindow_callback(self.show_open_dialog_native)
+        self.additional.i2i.set_request_open_callback(self.load_memory)
     
     def request_memory(self):
         return copy.deepcopy(self.memory)

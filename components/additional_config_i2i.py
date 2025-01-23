@@ -1,6 +1,6 @@
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, GLib, GdkPixbuf
+from gi.repository import Gtk, GLib, GdkPixbuf, Gdk
 from PIL import Image
 
 from utils.template import TemplateX
@@ -16,11 +16,18 @@ class AdditionalConfigI2I(Gtk.Box):
     denoising_strength = Gtk.Template.Child()
     target_image = Gtk.Template.Child()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.memory = CanvasMemory(None, None, None)
         self.size = self.target_image.get_pixel_size()
         self.request_memory = None
+        # drag and drop to open image
+        drop = Gtk.DropTargetAsync(
+            actions=Gdk.DragAction.COPY,
+            formats=Gdk.ContentFormats.new(["text/uri-list"])  # URL to the image
+        )
+        self.target_image.add_controller(drop)
+        drop.connect("drop", self.on_drop_image)
         self.visualize()
     
     def visualize(self):
@@ -45,9 +52,9 @@ class AdditionalConfigI2I(Gtk.Box):
 
     @Gtk.Template.Callback()
     def on_open_button_clicked(self, button):
-        self.request_open(self.load_memory)
+        self.request_openwindow(self.set_memory)
 
-    def load_memory(self, mem):
+    def set_memory(self, mem):
         if mem is not None:
             self.memory = mem
             self.visualize()
@@ -55,11 +62,29 @@ class AdditionalConfigI2I(Gtk.Box):
     def set_request_memory_callback(self, func):
         self.request_memory = func
     
+    def set_request_openwindow_callback(self, func):
+        self.request_openwindow = func
+    
     def set_request_open_callback(self, func):
         self.request_open = func
     
     def get_current_latent(self):
         return self.memory.latent.clone()
+    
+    def on_drop_image(self, widget, drop, x, y):
+        drop.read_value_async(
+            Gdk.FileList,
+            GLib.PRIORITY_DEFAULT,
+            None,
+            self.drop_image_callback,
+        )
+        drop.finish(Gdk.DragAction.COPY)
+
+    def drop_image_callback(self, drop, result):
+        files = drop.read_value_finish(result).get_files()
+        file = files[0]
+        mem = self.request_open(file.get_path())
+        self.set_memory(mem)
 
     def get_config(self):
         return {
