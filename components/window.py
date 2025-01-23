@@ -8,6 +8,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GLib, Gdk, GdkPixbuf, Gio
+from pathlib import Path
+import datetime
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
@@ -46,9 +48,6 @@ class Window(Gtk.ApplicationWindow):
             memory = text_to_image(self.pipe, **pipe_kwargs)
         elif task_name == "i2i":
             memory = image_to_image(self.pipe, latent=self.memory.latent, **pipe_kwargs)
-        image = memory.image
-        image_cred = mitsua_credit(image)
-        save_image_with_metadata(image_cred, "output.png", memory.latent, memory.generation_config)
         return memory
 
     def process_pipe(self, task_name, **pipe_kwargs):
@@ -69,6 +68,7 @@ class Window(Gtk.ApplicationWindow):
             self.generate_button.set_sensitive(True)
             self.generate_button.set_label("Generate")
             self.memory = fut.result()
+            self.save_memory()
             self.visualize_result()
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
     
@@ -105,8 +105,10 @@ class Window(Gtk.ApplicationWindow):
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
         self.gacha_result.queue_draw()
 
-    def __init__(self):
+    def __init__(self, output_folder: Path):
         super().__init__()
+        self.output_folder = output_folder
+        self.pipe = None
         self.bg_loop = asyncio.new_event_loop()
         self.bg_thread = threading.Thread(target=self.bg_loop.run_forever, daemon=True)
         self.bg_thread.start()
@@ -182,12 +184,7 @@ class Window(Gtk.ApplicationWindow):
                 file = self.open_dialog.get_file()
                 if file is not None:
                     print(f"File path is {file.get_path()}")
-                    _, latent, config = load_image_with_metadata(file.get_path())
-                    latent = latent.to(self.pipe._execution_device)
-                    image = decode_latent(self.pipe, latent)[0]
-                    self.memory = CanvasMemory(image, latent, config)
-                    self.change_canvas_size(image.width, image.height)
-                    self.visualize_result()
+                    self.load_memory(file.get_path())
             except GLib.Error as error:
                 print(error)
                 # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
@@ -222,3 +219,19 @@ class Window(Gtk.ApplicationWindow):
         kwargs["width"] = self.image_width
         kwargs["height"] = self.image_height
         self.process_pipe(self.additional.get_task_name(), **kwargs)
+
+    def save_memory(self):
+        fname = self.output_folder / (datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".png")
+        image = mitsua_credit(self.memory.image)
+        save_image_with_metadata(image, fname, self.memory.latent, self.memory.generation_config)
+
+    def load_memory(self, path: str):
+        if self.pipe is None:
+            Gtk.AlertDialog(message=f"Error opening file", detail="To open an image, the diffusion model must be loaded. Please try agin later.").show(self)
+            return
+        _, latent, config = load_image_with_metadata(path)
+        latent = latent.to(self.pipe._execution_device)
+        image = decode_latent(self.pipe, latent)[0]
+        self.memory = CanvasMemory(image, latent, config)
+        self.change_canvas_size(image.width, image.height)
+        self.visualize_result()

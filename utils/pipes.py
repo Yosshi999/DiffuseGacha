@@ -3,7 +3,7 @@ from PIL import Image
 import torch
 from diffusers.utils.torch_utils import randn_tensor
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     """
@@ -25,7 +25,7 @@ class CanvasMemory:
     generation_config: Optional[dict]
 
 @torch.no_grad()
-def decode_latent(self, latents: torch.Tensor) -> Image.Image:
+def decode_latent(self, latents: torch.Tensor) -> List[Image.Image]:
     """Decode Latents to Image.
     Derived from https://huggingface.co/Mitsua/mitsua-likes/blob/main/pipeline_likes_base_unet.py#L994
     """
