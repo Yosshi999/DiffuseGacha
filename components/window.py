@@ -137,6 +137,13 @@ class Window(Gtk.ApplicationWindow):
         self.add_action(open_file_action)
         # draw area
         self.gacha_result.set_draw_func(self.on_draw, None)
+        # drag and drop to open image
+        drop = Gtk.DropTargetAsync(
+            actions=Gdk.DragAction.COPY,
+            formats=Gdk.ContentFormats.new(["text/uri-list"])  # URL to the image
+        )
+        self.gacha_result.add_controller(drop)
+        drop.connect("drop", self.on_drop_image)
 
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
         self.pixbuf = None
@@ -235,3 +242,19 @@ class Window(Gtk.ApplicationWindow):
         self.memory = CanvasMemory(image, latent, config)
         self.change_canvas_size(image.width, image.height)
         self.visualize_result()
+
+    def on_drop_image(self, widget, drop, x, y):
+        drop.read_value_async(
+            Gdk.FileList,
+            GLib.PRIORITY_DEFAULT,
+            None,
+            self.drop_image_callback,
+        )
+        drop.finish(Gdk.DragAction.COPY)
+
+    def drop_image_callback(self, drop, result):
+        files = drop.read_value_finish(result).get_files()
+        if len(files) > 1:
+            Gtk.AlertDialog(message=f"Notice", detail="Only one file will be opened.").show(self)
+        file = files[0]
+        self.load_memory(file.get_path())
