@@ -70,6 +70,7 @@ class Window(Gtk.ApplicationWindow):
         def resolve():
             self.generate_button.set_sensitive(True)
             self.generate_button.set_label("Generate")
+            self.progress.set_fraction(0)
             self.memory = fut.result()
             self.save_memory()
             self.visualize_result()
