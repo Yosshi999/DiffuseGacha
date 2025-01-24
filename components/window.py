@@ -86,12 +86,11 @@ class Window(Gtk.ApplicationWindow):
         self.add_action(self.show_credits)
         # open file
         open_file_action = Gio.SimpleAction.new(name="open")
-        def open_resolve(mem: Optional[CanvasMemory]):
-            if mem is not None:
-                self.memory = mem
-                self.change_canvas_size(mem.image.width, mem.image.height)
-                self.visualize_result()
-        open_file_action.connect("activate", partial(self.show_open_dialog_native, open_resolve))
+        def open_resolve(mem: CanvasMemory):
+            self.memory = mem
+            self.change_canvas_size(mem.image.width, mem.image.height)
+            self.visualize_result()
+        open_file_action.connect("activate", lambda action, _: gstate.load_memory_with_dialog(self, open_resolve))
         self.add_action(open_file_action)
         # draw area
         self.gacha_result.set_draw_func(self.on_draw, None)
@@ -105,34 +104,9 @@ class Window(Gtk.ApplicationWindow):
 
         self.memory: CanvasMemory = CanvasMemory(None, None, None)
         self.pixbuf = None
-
-        self.additional.i2i.set_request_memory_callback(self.request_memory)
-        self.additional.i2i.set_request_openwindow_callback(self.show_open_dialog_native)
-        self.additional.i2i.set_request_open_callback(self.load_memory)
     
     def request_memory(self):
         return copy.deepcopy(self.memory)
-
-    def show_open_dialog_native(self, then, action=None, _=None):
-        self.open_dialog = Gtk.FileChooserNative.new(title="Open File", parent=self, action=Gtk.FileChooserAction.OPEN)
-        self.open_dialog.set_modal(True)
-        self.open_dialog.set_transient_for(self)
-        self.open_dialog.connect("response", partial(self.open_dialog_native_callback, then))
-        self.open_dialog.show()
-        
-    def open_dialog_native_callback(self, then, dialog, response):
-        if response == Gtk.ResponseType.ACCEPT:
-            try:
-                file = self.open_dialog.get_file()
-                if file is not None:
-                    print(f"File path is {file.get_path()}")
-                    then(self.load_memory(file.get_path()))
-            except GLib.Error as error:
-                print(error)
-                # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
-            except Exception as e:
-                print(e)
-                Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
 
     def change_canvas_size(self, width: int, height: int):
         self.image_width = width

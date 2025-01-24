@@ -1,7 +1,7 @@
 from diffusers import DiffusionPipeline
 from PIL import Image
 import gi
-from gi.repository import GLib
+from gi.repository import GLib, Gtk
 import torch
 from diffusers.utils.torch_utils import randn_tensor
 from dataclasses import dataclass
@@ -9,6 +9,7 @@ from typing import Optional, List, Any
 import asyncio
 from collections.abc import Callable
 import threading
+from functools import partial
 
 from utils.pipes import CanvasMemory, text_to_image, image_to_image, decode_latent
 from utils.imutil import save_image_with_metadata, load_image_with_metadata, mitsua_credit
@@ -94,3 +95,24 @@ def load_memory(path: str) -> CanvasMemory:
 def save_memory(memory: CanvasMemory, path: str):
     image = mitsua_credit(memory.image)
     save_image_with_metadata(image, path, memory.latent, memory.generation_config)
+
+def load_memory_with_dialog(window: Gtk.ApplicationWindow, resolve: Callable[[CanvasMemory], None]):
+    def callback(resolve, dialog, response):
+        if response == Gtk.ResponseType.ACCEPT:
+            try:
+                file = window.open_dialog.get_file()
+                if file is not None:
+                    print(f"File path is {file.get_path()}")
+                    resolve(load_memory(file.get_path()))
+            except GLib.Error as error:
+                print(error)
+                Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(window)
+            except Exception as e:
+                print(e)
+                Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(window)
+
+    window.open_dialog = Gtk.FileChooserNative.new(title="Open File", parent=window, action=Gtk.FileChooserAction.OPEN)
+    window.open_dialog.set_modal(True)
+    window.open_dialog.set_transient_for(window)
+    window.open_dialog.connect("response", partial(callback, resolve))
+    window.open_dialog.show()

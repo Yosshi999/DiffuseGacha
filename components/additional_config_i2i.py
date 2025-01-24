@@ -6,6 +6,7 @@ from PIL import Image
 from utils.template import TemplateX
 from utils.pipes import CanvasMemory, decode_latent
 from utils.imutil import load_image_with_metadata
+import gstate
 
 @TemplateX("components/additional_config_i2i.uix")
 class AdditionalConfigI2I(Gtk.Box):
@@ -20,7 +21,6 @@ class AdditionalConfigI2I(Gtk.Box):
         super().__init__(*args, **kwargs)
         self.memory = CanvasMemory(None, None, None)
         self.size = self.target_image.get_pixel_size()
-        self.request_memory = None
         # drag and drop to open image
         drop = Gtk.DropTargetAsync(
             actions=Gdk.DragAction.COPY,
@@ -29,6 +29,10 @@ class AdditionalConfigI2I(Gtk.Box):
         self.target_image.add_controller(drop)
         drop.connect("drop", self.on_drop_image)
         self.visualize()
+    
+    @property
+    def window(self):
+        return self.get_ancestor(Gtk.ApplicationWindow)
     
     def visualize(self):
         image = self.memory.image
@@ -47,26 +51,16 @@ class AdditionalConfigI2I(Gtk.Box):
     
     @Gtk.Template.Callback()
     def on_set_target_button_clicked(self, button):
-        self.memory = self.request_memory()
+        self.memory = self.window.request_memory()
         self.visualize()
 
     @Gtk.Template.Callback()
     def on_open_button_clicked(self, button):
-        self.request_openwindow(self.set_memory)
+        gstate.load_memory_with_dialog(self.window, self.set_memory)
 
     def set_memory(self, mem):
-        if mem is not None:
-            self.memory = mem
-            self.visualize()
-    
-    def set_request_memory_callback(self, func):
-        self.request_memory = func
-    
-    def set_request_openwindow_callback(self, func):
-        self.request_openwindow = func
-    
-    def set_request_open_callback(self, func):
-        self.request_open = func
+        self.memory = mem
+        self.visualize()
     
     def get_current_latent(self):
         return self.memory.latent.clone()
@@ -82,9 +76,20 @@ class AdditionalConfigI2I(Gtk.Box):
 
     def drop_image_callback(self, drop, result):
         files = drop.read_value_finish(result).get_files()
+        if len(files) > 1:
+            Gtk.AlertDialog(
+                message=f"Notice",
+                detail="Only one file will be opened."
+            ).show(self.window)
         file = files[0]
-        mem = self.request_open(file.get_path())
-        self.set_memory(mem)
+        try:
+            mem = gstate.load_memory(file.get_path())
+            self.set_memory(mem)
+        except gstate.ModelNotInitializedError:
+            Gtk.AlertDialog(
+                message=f"Error opening file",
+                detail="To open an image, the diffusion model must be loaded. Please try agin later."
+            ).show(self.window)
 
     def get_config(self):
         return {
