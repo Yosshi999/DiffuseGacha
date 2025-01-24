@@ -77,7 +77,7 @@ class Window(Gtk.ApplicationWindow):
         fut.add_done_callback(lambda _: GLib.idle_add(resolve))
     
     def on_draw(self, widget, cr, width, height, data):
-        cr.set_source_rgb(0, 0, 0)  # black
+        cr.set_source_rgba(0, 0, 0, 0)  # transparent color
         cr.paint()
         if self.pixbuf:
             buf_width = self.pixbuf.get_width()
