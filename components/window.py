@@ -1,8 +1,5 @@
-from diffusers import DiffusionPipeline
 import torch
-from utils.imutil import mitsua_credit, save_image_with_metadata, load_image_with_metadata
-import threading
-import asyncio
+from utils.imutil import mitsua_credit
 from PIL import Image
 import gi
 gi.require_version("Gtk", "4.0")
@@ -16,7 +13,8 @@ from functools import partial
 
 from components.change_canvas_size_modal import ChangeCanvasSizeModal
 from utils.template import TemplateX
-from utils.pipes import CanvasMemory, text_to_image, image_to_image, decode_latent
+import gstate
+from gstate import CanvasMemory
 
 @TemplateX("components/window.uix")
 class Window(Gtk.ApplicationWindow):
@@ -27,54 +25,13 @@ class Window(Gtk.ApplicationWindow):
     progress = Gtk.Template.Child()
     gacha_result = Gtk.Template.Child()
 
-    async def _initialize_model(self, device, dtype):
-        pipe = DiffusionPipeline.from_pretrained("Mitsua/mitsua-likes", trust_remote_code=True).to(device, dtype=dtype)
-        # Workaround because https://huggingface.co/Mitsua/mitsua-likes/blob/main/pipeline_likes_base_unet.py#L1035 is broken.
-        pipe.run_character_detector = lambda *args: (None, None)
-        return pipe
-
-    def initialize_model(self):
+    def lock_ui(self, button_label: str):
         self.generate_button.set_sensitive(False)
-        self.generate_button.set_label("Loading model...")
-        fut = asyncio.run_coroutine_threadsafe(
-            self._initialize_model(self.device, self.dtype),
-            self.bg_loop
-        )
-        def resolve():
-            self.pipe = fut.result()
-            self.generate_button.set_sensitive(True)
-            self.generate_button.set_label("Generate")
-        fut.add_done_callback(lambda _: GLib.idle_add(resolve))
+        self.generate_button.set_label(button_label)
 
-    async def _process_pipe(self, task_name, **pipe_kwargs) -> CanvasMemory:
-        if task_name == "t2i":
-            memory = text_to_image(self.pipe, **pipe_kwargs)
-        elif task_name == "i2i":
-            memory = image_to_image(self.pipe, **pipe_kwargs)
-        return memory
-
-    def process_pipe(self, task_name, **pipe_kwargs):
-        self.generate_button.set_sensitive(False)
-        self.generate_button.set_label("Generating...")
-        def _on_step_end(pipe, i, t, kwargs):
-            fraction = (i+1) / pipe._num_timesteps
-            GLib.idle_add(lambda: self.progress.set_fraction(fraction))
-            return {}
-        fut = asyncio.run_coroutine_threadsafe(
-            self._process_pipe(
-                task_name,
-                callback_on_step_end=_on_step_end,
-                **pipe_kwargs),
-            self.bg_loop
-        )
-        def resolve():
-            self.generate_button.set_sensitive(True)
-            self.generate_button.set_label("Generate")
-            self.progress.set_fraction(0)
-            self.memory = fut.result()
-            self.save_memory()
-            self.visualize_result()
-        fut.add_done_callback(lambda _: GLib.idle_add(resolve))
+    def unlock_ui(self):
+        self.generate_button.set_sensitive(True)
+        self.generate_button.set_label("Generate")
     
     def on_draw(self, widget, cr, width, height, data):
         cr.set_source_rgba(0, 0, 0, 0)  # transparent color
@@ -112,17 +69,9 @@ class Window(Gtk.ApplicationWindow):
     def __init__(self, output_folder: Path):
         super().__init__()
         self.output_folder = output_folder
-        self.pipe = None
-        self.bg_loop = asyncio.new_event_loop()
-        self.bg_thread = threading.Thread(target=self.bg_loop.run_forever, daemon=True)
-        self.bg_thread.start()
-        if torch.cuda.is_available():
-            print("CUDA is available")
-            self.device = "cuda"
-        else:
-            self.device = "cpu"
-        self.dtype = torch.float16
-        self.initialize_model()
+        gstate.initialize()
+        self.lock_ui("Loading model...")
+        gstate.initialize_model_async(self.unlock_ui)
         self.image_width = 640
         self.image_height = 640
         self.set_title(f"DiffuseGacha - {self.image_width}x{self.image_height}")
@@ -215,21 +164,32 @@ class Window(Gtk.ApplicationWindow):
                 Gtk.AlertDialog(message=f"Invalid I2I Request", detail="Target image is not loaded.").show(self)
                 return
             kwargs["latent"] = latent
-        self.process_pipe(self.additional.get_task_name(), **kwargs)
+        
+        def resolve(memory: CanvasMemory):
+            self.unlock_ui()
+            self.progress.set_fraction(0)
+            self.memory = memory
+            self.save_memory()
+            self.visualize_result()
+
+        self.lock_ui("Generating...")
+        gstate.process_pipe_async(
+            self.additional.get_task_name(),
+            kwargs,
+            self.progress.set_fraction,
+            resolve
+        )
 
     def save_memory(self):
         fname = self.output_folder / (datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".png")
-        image = mitsua_credit(self.memory.image)
-        save_image_with_metadata(image, fname, self.memory.latent, self.memory.generation_config)
+        gstate.save_memory(self.memory, fname)
 
     def load_memory(self, path: str) -> Optional[CanvasMemory]:
-        if self.pipe is None:
+        try:
+            return gstate.load_memory(path)
+        except gstate.ModelNotInitializedError:
             Gtk.AlertDialog(message=f"Error opening file", detail="To open an image, the diffusion model must be loaded. Please try agin later.").show(self)
             return None
-        _, latent, config = load_image_with_metadata(path)
-        latent = latent.to(self.pipe._execution_device)
-        image = decode_latent(self.pipe, latent)[0]
-        return CanvasMemory(image, latent, config)
 
     def on_drop_image(self, widget, drop, x, y):
         drop.read_value_async(
