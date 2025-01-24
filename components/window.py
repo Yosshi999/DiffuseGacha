@@ -163,18 +163,6 @@ class Window(Gtk.ApplicationWindow):
     def request_memory(self):
         return copy.deepcopy(self.memory)
 
-    # def show_open_dialog(self, action, _):
-    #     open_dialog = Gtk.FileDialog()
-    #     open_dialog.set_title("Select a File")
-    #     f = Gtk.FileFilter()
-    #     f.set_name("Image files")
-    #     f.add_mime_type("image/png")
-    #     filters = Gio.ListStore.new(Gtk.FileFilter)
-    #     filters.append(f)
-    #     open_dialog.set_filters(filters)  # Set the filters for the open dialog
-    #     open_dialog.set_default_filter(f)
-    #     open_dialog.open(self, None, self.open_dialog_open_callback)
-
     def show_open_dialog_native(self, then, action=None, _=None):
         self.open_dialog = Gtk.FileChooserNative.new(title="Open File", parent=self, action=Gtk.FileChooserAction.OPEN)
         self.open_dialog.set_modal(True)
@@ -182,24 +170,6 @@ class Window(Gtk.ApplicationWindow):
         self.open_dialog.connect("response", partial(self.open_dialog_native_callback, then))
         self.open_dialog.show()
         
-    # def open_dialog_open_callback(self, dialog, result):
-    #     try:
-    #         file = dialog.open_finish(result)
-    #         if file is not None:
-    #             print(f"File path is {file.get_path()}")
-    #             _, latent, config = load_image_with_metadata(file.get_path())
-    #             latent = latent.to(self.pipe._execution_device)
-    #             image = mitsua_decode(self.pipe, latent)[0]
-    #             self.memory = CanvasMemory(image, latent, config)
-    #             self.change_canvas_size(image.width, image.height)
-    #             self.visualize_result()
-    #     except GLib.Error as error:
-    #         print(error)
-    #         # Gtk.AlertDialog(message=f"Error opening file", detail=error.message).show(self)
-    #     except Exception as e:
-    #         print(e)
-    #         Gtk.AlertDialog(message=f"Error opening file", detail="This file is not supported.").show(self)
-
     def open_dialog_native_callback(self, then, dialog, response):
         if response == Gtk.ResponseType.ACCEPT:
             try:
