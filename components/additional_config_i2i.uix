@@ -46,6 +46,7 @@
             halign="end"
         />
     </Box>
+    <Separator />
     <Box orientation="horizontal" className="m-2">
         <Label label="Denoising Method" className="m-2" halign="start" hexpand="true" />
         <CheckButton
