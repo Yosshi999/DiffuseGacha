@@ -47,6 +47,23 @@
         />
     </Box>
     <Box orientation="horizontal" className="m-2">
+        <Label label="Denoising Method" className="m-2" halign="start" hexpand="true" />
+        <CheckButton
+            label="Random"
+            id="denoise_random"
+            active="true"
+            halign="end"
+            hexpand="true"
+        />
+        <CheckButton
+            label="DDIM Inversion"
+            id="denoise_inversion"
+            group="denoise_random"
+            halign="end"
+            hexpand="true"
+        />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
         <Label label="Denoising Strength" className="m-2" />
         <SpinButton
             id="denoising_strength"

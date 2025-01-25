@@ -16,6 +16,7 @@ class AdditionalConfigI2I(Gtk.Box):
     num_inference_steps = Gtk.Template.Child()
     denoising_strength = Gtk.Template.Child()
     target_image = Gtk.Template.Child()
+    denoise_inversion = Gtk.Template.Child()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -99,4 +100,7 @@ class AdditionalConfigI2I(Gtk.Box):
             "guidance_rescale": self.guidance_rescale.get_value(),
             "num_inference_steps": self.num_inference_steps.get_value_as_int(),
             "strength": self.denoising_strength.get_value(),
+            "ddim_inversion": self.denoise_inversion.get_active(),
+            "original_prompt": self.memory.generation_config["prompt"],
+            "original_negative_prompt": self.memory.generation_config["negative_prompt"],
         }
