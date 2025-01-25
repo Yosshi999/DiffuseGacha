@@ -63,6 +63,8 @@ class AdditionalConfigI2I(Gtk.Box):
         self.visualize()
     
     def get_current_latent(self):
+        if self.memory.latent is None:
+            return None
         return self.memory.latent.clone()
     
     def on_drop_image(self, widget, drop, x, y):
