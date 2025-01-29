@@ -8,11 +8,12 @@ class AdditionalConfigs(Gtk.Notebook):
     __gtype_name__ = "AdditionalConfigs"
     t2i = Gtk.Template.Child()
     i2i = Gtk.Template.Child()
+    p2p = Gtk.Template.Child()
 
     def __init__(self):
         super().__init__()
-        self.children = [self.t2i, self.i2i]
-        self.task_name = ["t2i", "i2i"]
+        self.children = [self.t2i, self.i2i, self.p2p]
+        self.task_name = ["t2i", "i2i", "p2p"]
 
     def get_config(self):
         index = self.get_current_page()

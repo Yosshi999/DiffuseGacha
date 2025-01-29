@@ -8,14 +8,15 @@ from utils.pipes import CanvasMemory, decode_latent
 from utils.imutil import load_image_with_metadata
 import gstate
 
-@TemplateX("components/additional_config_i2i.uix")
-class AdditionalConfigI2I(Gtk.Box):
-    __gtype_name__ = "AdditionalConfigI2I"
+@TemplateX("components/additional_config_p2p.uix")
+class AdditionalConfigP2P(Gtk.Box):
+    __gtype_name__ = "AdditionalConfigP2P"
     guidance_scale = Gtk.Template.Child()
     guidance_rescale = Gtk.Template.Child()
     num_inference_steps = Gtk.Template.Child()
     denoising_strength = Gtk.Template.Child()
     target_image = Gtk.Template.Child()
+    old_prompt = Gtk.Template.Child()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,6 +49,9 @@ class AdditionalConfigI2I(Gtk.Box):
         data = GLib.Bytes.new(data)
         pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(data, GdkPixbuf.Colorspace.RGB, False, 8, w, h, w * 3)
         self.target_image.set_from_pixbuf(pixbuf.copy())
+        if self.memory.generation_config is not None:
+            print(self.memory.generation_config)
+            self.old_prompt.get_buffer().set_text(self.memory.generation_config.get("prompt", ""))
     
     @Gtk.Template.Callback()
     def on_set_target_button_clicked(self, button):
@@ -99,5 +103,7 @@ class AdditionalConfigI2I(Gtk.Box):
             "guidance_rescale": self.guidance_rescale.get_value(),
             "num_inference_steps": self.num_inference_steps.get_value_as_int(),
             "strength": self.denoising_strength.get_value(),
-            "ddim_inversion": False,
+            "ddim_inversion": True,
+            "original_prompt": self.memory.generation_config["prompt"],
+            "original_negative_prompt": self.memory.generation_config["negative_prompt"],
         }

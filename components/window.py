@@ -138,6 +138,12 @@ class Window(Gtk.ApplicationWindow):
                 Gtk.AlertDialog(message=f"Invalid I2I Request", detail="Target image is not loaded.").show(self)
                 return
             kwargs["latent"] = latent
+        if self.additional.get_task_name() == "p2p":
+            latent = self.additional.p2p.get_current_latent()
+            if latent is None:
+                Gtk.AlertDialog(message=f"Invalid P2P Request", detail="Target image is not loaded.").show(self)
+                return
+            kwargs["latent"] = latent
         
         def resolve(memory: CanvasMemory):
             self.unlock_ui()

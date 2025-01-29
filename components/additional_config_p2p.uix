@@ -13,9 +13,9 @@
 />
 <Adjustment id="denoising_strength_adjustment"
     lower="0.0" upper="1.0" step-increment="0.05"
-    page-increment="0.1" page-size="0.0" value="0.7"
+    page-increment="0.1" page-size="0.0" value="0.4"
 />
-<template class="AdditionalConfigI2I" parent="GtkBox" orientation="vertical">
+<template class="AdditionalConfigP2P" parent="GtkBox" orientation="vertical">
     <Box orientation="horizontal" className="m-2">
         <Label label="Guidance Scale" className="m-2" />
         <SpinButton
@@ -72,6 +72,15 @@
             />
         </Box>
         <Image id="target_image" pixelSize="80" valign="end" />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Old Prompt" className="m-2"/>
+        <ScrolledWindow hexpand="true" className="m-2" halign="fill">
+            <TextView
+                id="old_prompt"
+                heightRequest="50"
+                wrapMode="char" />
+        </ScrolledWindow>
     </Box>
 </template>
 </interface>

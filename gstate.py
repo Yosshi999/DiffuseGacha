@@ -69,6 +69,8 @@ async def _process_pipe(task_name: str, **pipe_kwargs) -> CanvasMemory:
         return text_to_image(_gstate.pipe, **pipe_kwargs)
     elif task_name == "i2i":
         return image_to_image(_gstate.pipe, **pipe_kwargs)
+    elif task_name == "p2p":
+        return image_to_image(_gstate.pipe, **pipe_kwargs)
     else:
         raise NotImplementedError()
 

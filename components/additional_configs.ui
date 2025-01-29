@@ -16,5 +16,13 @@
             <property name="label">I2I</property>
         </object>
     </child>
+    <child>
+        <object class="AdditionalConfigP2P" id="p2p" />
+    </child>
+    <child type="tab">
+        <object class="GtkLabel">
+            <property name="label">P2P</property>
+        </object>
+    </child>
 </template>
 </interface>

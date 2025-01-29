@@ -126,7 +126,7 @@ def image_to_image(
     guidance_scale: float,
     guidance_rescale: float,
     strength: float,
-    ddim_inversion: bool,
+    ddim_inversion: bool = False,
     original_prompt: Optional[str] = None,
     original_negative_prompt: Optional[str] = None,
     callback_on_step_end = None,

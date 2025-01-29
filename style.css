@@ -10,3 +10,6 @@
 .m-16 {
     margin: 4rem;
 }
+textview.view {
+    border: 1px gray solid;
+}
