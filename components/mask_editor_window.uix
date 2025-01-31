@@ -1,0 +1,45 @@
+<interface>
+<Adjustment id="brush_size_adjustment"
+    lower="0" upper="50" step-increment="1"
+    page-increment="1" page-size="0" value="10"
+/>
+<template
+    class="MaskEditorWindow"
+    parent="GtkWindow"
+    title="Mask Editor - DiffuseGacha"
+    resizable="true"
+    modal="false"
+>
+    <Box orientation="horizontal">
+        <Box orientation="vertical" widthRequest="200">
+            <Label label="brush size" className="m-2" />
+            <Scale
+                id="brush_size"
+                hexpand="true"
+                adjustment="brush_size_adjustment"
+                digits="0"
+                on_valueChanged="on_change_brush_size"
+            />
+            <Button
+                id="clear_all"
+                hexpand="true"
+                label="Clear All"
+                on_clicked="on_clear_clicked"
+            />
+            <Button
+                id="save_mask"
+                hexpand="true"
+                label="Save Mask"
+                on_clicked="on_save_clicked"
+            />
+        </Box>
+        <Separator />
+        <DrawingArea
+            id="canvas"
+            widthRequest="640"
+            heightRequest="640"
+            className="m-4"
+        />
+    </Box>
+</template>
+</interface>

@@ -73,5 +73,18 @@
         </Box>
         <Image id="target_image" pixelSize="80" valign="end" />
     </Box>
+    <Separator />
+    <Box orientation="horizontal" className="m-2">
+        <Label label="Inpaint Mode" className="m-2" halign="start" hexpand="true" />
+        <CheckButton id="inpaint_mode" halign="end" active="true" />
+    </Box>
+    <Box orientation="horizontal" className="m-2">
+        <Button
+            id="open_mask_button"
+            label="Open mask editor"
+            on_clicked="on_open_mask_button_clicked"
+            hexpand="true"
+        />
+    </Box>
 </template>
 </interface>

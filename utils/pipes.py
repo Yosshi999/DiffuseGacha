@@ -1,4 +1,5 @@
 from diffusers import DDIMInverseScheduler
+from diffusers.image_processor import VaeImageProcessor
 from PIL import Image
 import torch
 from diffusers.utils.torch_utils import randn_tensor
@@ -23,6 +24,10 @@ class CanvasMemory:
     image: Optional[Image.Image]
     latent: Optional[torch.Tensor]  # tensor of shape (1, 8, height, width)
     generation_config: Optional[dict]
+    def copy_from(self, other: "CanvasMemory"):
+        self.image = other.image
+        self.latent = other.latent
+        self.generation_config = other.generation_config
 
 @torch.no_grad()
 def decode_latent(self, latents: torch.Tensor) -> List[Image.Image]:
@@ -113,6 +118,7 @@ def get_timesteps(self, num_inference_steps, strength, device):
 
     return timesteps, num_inference_steps - t_start
 
+# https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion_inpaint.py#L881
 @torch.no_grad()
 def image_to_image(
     self,
@@ -129,6 +135,7 @@ def image_to_image(
     ddim_inversion: bool = False,
     original_prompt: Optional[str] = None,
     original_negative_prompt: Optional[str] = None,
+    mask_image: Optional[Image.Image] = None,
     callback_on_step_end = None,
 ) -> CanvasMemory:
     device = self._execution_device
@@ -181,6 +188,21 @@ def image_to_image(
         return prompt_embeds, add_text_embeds, add_time_ids, extra_step_kwargs
 
     latents = latent.clone()
+
+    if mask_image is not None:
+        init_latents = latents.clone()
+        # prepare masked latents
+        mask_processor = VaeImageProcessor(
+            vae_scale_factor=self.vae_scale_factor,
+            do_normalize=False, do_binarize=True, do_convert_grayscale=True,
+        )
+        mask_condition = mask_processor.preprocess(
+            mask_image, height=height, width=width, resize_mode="default", crops_coords=None
+        )
+        mask = torch.nn.functional.interpolate(
+            mask_condition, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
+        ).to(device=device, dtype=latents.dtype)
+
     self.scheduler.set_timesteps(num_inference_steps, device=device)
     timesteps = self.scheduler.timesteps
     if ddim_inversion:
@@ -324,6 +346,15 @@ def image_to_image(
                 if torch.backends.mps.is_available():
                     # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
                     latents = latents.to(latents_dtype)
+            if mask_image is not None:
+                if i < len(timesteps) - 1:
+                    noise_timestep = timesteps[i + 1]
+                    lock_latents = self.scheduler.add_noise(
+                        init_latents, noise, torch.tensor([noise_timestep])
+                    )
+                else:
+                    lock_latents = init_latents
+                latents = (1 - mask) * lock_latents + mask * latents
 
             if callback_on_step_end is not None:
                 callback_kwargs = {}
