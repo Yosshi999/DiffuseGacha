@@ -16,5 +16,11 @@
                 wrapMode="char" />
         </ScrolledWindow>
     </Expander>
+    <Expander label="Random Seed" className="m-2">
+        <Box orientation="vertical">
+            <CheckButton label="Random per generation" id="random_generation" active="true" on_toggled="on_rand_toggled" />
+            <Entry id="seed" hexpand="true" />
+        </Box>
+    </Expander>
 </template>
 </interface>

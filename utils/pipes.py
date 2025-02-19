@@ -75,6 +75,7 @@ def text_to_image(
     *,
     prompt: str,
     negative_prompt: str,
+    seed: int,
     height: int,
     width: int,
     num_inference_steps: int,
@@ -92,6 +93,7 @@ def text_to_image(
         guidance_rescale=guidance_rescale,
         callback_on_step_end=callback_on_step_end,
         output_type="latent",
+        generator=torch.Generator().manual_seed(seed),
     )
     latent = output.images
     image = decode_latent(self, latent)[0]
@@ -125,6 +127,7 @@ def image_to_image(
     *,
     prompt: str,
     negative_prompt: str,
+    seed: int,
     height: int,
     width: int,
     latent: torch.Tensor,
@@ -139,7 +142,7 @@ def image_to_image(
     callback_on_step_end = None,
 ) -> CanvasMemory:
     device = self._execution_device
-    generator = None
+    generator = torch.Generator().manual_seed(seed)
     eta = 0.0
     crops_coords_top_left = (0, 0)
     callback_on_step_end_tensor_inputs = ["latents"]
