@@ -13,7 +13,7 @@ class Prompt(Gtk.Box):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.positive_prompt.get_buffer().set_text("夜空、クジラ、星, Van Gogh style, oil painting")
-        self.negative_prompt.get_buffer().set_text("elan doodle, lowres")
+        self.negative_prompt.get_buffer().set_text("elan doodle,lowres,3d,3d cg,vroid,ugly,cropped,jpeg artifacts,blurry")
     
     def get_config(self):
         positive_buf = self.positive_prompt.get_buffer()
